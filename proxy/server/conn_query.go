@@ -51,7 +51,10 @@ func (c *ClientConn) handleQuery(sql string) (err error) {
 		}
 	}()
 
-	sql = strings.TrimRight(sql, ";") //删除sql语句最后的分号
+	sql = strings.TrimRight(sql, ";") // 删除sql语句最后的分号
+	// valid sql
+	c.sql = sql
+
 	hasHandled, err := c.preHandleShard(sql)
 	if err != nil {
 		golog.Error("server", "preHandleShard", err.Error(), 0,
@@ -61,11 +64,12 @@ func (c *ClientConn) handleQuery(sql string) (err error) {
 		return err
 	}
 	if hasHandled {
+		// executed in preHandleShard
 		return nil
 	}
 
 	var stmt sqlparser.Statement
-	stmt, err = sqlparser.Parse(sql) //解析sql语句,得到的stmt是一个interface
+	stmt, err = sqlparser.Parse(sql) // 解析sql语句,得到的stmt是一个interface
 	if err != nil {
 		golog.Error("server", "parse", err.Error(), 0, "hasHandled", hasHandled, "sql", sql)
 		return err
@@ -73,22 +77,31 @@ func (c *ClientConn) handleQuery(sql string) (err error) {
 
 	switch v := stmt.(type) {
 	case *sqlparser.Select:
+		c.command = mysql.COM_SELECT_STR
 		return c.handleSelect(v, nil)
 	case *sqlparser.Insert:
+		c.command = mysql.COM_INSERT_STR
 		return c.handleExec(stmt, nil)
 	case *sqlparser.Update:
+		c.command = mysql.COM_UPDATE_STR
 		return c.handleExec(stmt, nil)
 	case *sqlparser.Delete:
+		c.command = mysql.COM_DELETE_STR
 		return c.handleExec(stmt, nil)
 	case *sqlparser.Replace:
+		c.command = mysql.COM_REPLACE_STR
 		return c.handleExec(stmt, nil)
 	case *sqlparser.Set:
+		c.command = mysql.COM_SET_STR
 		return c.handleSet(v, sql)
 	case *sqlparser.Begin:
+		c.command = mysql.COM_BEGIN_STR
 		return c.handleBegin()
 	case *sqlparser.Commit:
+		c.command = mysql.COM_COMMIT_STR
 		return c.handleCommit()
 	case *sqlparser.Rollback:
+		c.command = mysql.COM_ROLLBACK_STR
 		return c.handleRollback()
 	case *sqlparser.Admin:
 		if c.user == "root" {
@@ -101,10 +114,13 @@ func (c *ClientConn) handleQuery(sql string) (err error) {
 		}
 		return fmt.Errorf("statement %T not support now", stmt)
 	case *sqlparser.UseDB:
+		c.command = mysql.COM_USE_STR
 		return c.handleUseDB(v.DB)
 	case *sqlparser.SimpleSelect:
+		c.command = mysql.COM_SELECT_STR
 		return c.handleSimpleSelect(v)
 	case *sqlparser.Truncate:
+		c.command = mysql.COM_TRUNCATE_STR
 		return c.handleExec(stmt, nil)
 	default:
 		return fmt.Errorf("statement %T not support now", stmt)
@@ -149,7 +165,7 @@ func (c *ClientConn) getBackendConn(n *backend.Node, fromSlave bool) (co *backen
 	}
 
 	if err = co.UseDB(c.db); err != nil {
-		//reset the database to null
+		// reset the database to null
 		c.db = ""
 		return
 	}
@@ -178,7 +194,7 @@ func (c *ClientConn) getShardConns(fromSlave bool, plan *router.Plan) (map[strin
 		if 1 < len(nodes) {
 			return nil, errors.ErrTransInMulti
 		}
-		//exec in multi node
+		// exec in multi node
 		if len(c.txConns) == 1 && c.txConns[nodes[0]] == nil {
 			return nil, errors.ErrTransInMulti
 		}
@@ -197,16 +213,17 @@ func (c *ClientConn) getShardConns(fromSlave bool, plan *router.Plan) (map[strin
 	return conns, err
 }
 
+// executeInNode for single node
 func (c *ClientConn) executeInNode(conn *backend.BackendConn, sql string, args []interface{}) ([]*mysql.Result, error) {
 	var state string
-	startTime := time.Now().UnixNano()
+	startTime := time.Now()
 	r, err := conn.Execute(sql, args...)
 	if err != nil {
 		state = "ERROR"
 	} else {
 		state = "OK"
 	}
-	execTime := float64(time.Now().UnixNano()-startTime) / float64(time.Millisecond)
+	execTime := float64(time.Since(startTime).Microseconds()) / 1000
 	if strings.ToLower(c.proxy.logSql[c.proxy.logSqlIndex]) != golog.LogSqlOff &&
 		execTime >= float64(c.proxy.slowLogTime[c.proxy.slowLogTimeIndex]) {
 		c.proxy.counter.IncrSlowLogTotal()
@@ -225,6 +242,7 @@ func (c *ClientConn) executeInNode(conn *backend.BackendConn, sql string, args [
 	return []*mysql.Result{r}, err
 }
 
+// executeInMultiNodes for multiple nodes
 func (c *ClientConn) executeInMultiNodes(conns map[string]*backend.BackendConn, sqls map[string][]string, args []interface{}) ([]*mysql.Result, error) {
 	if len(conns) != len(sqls) {
 		golog.Error("ClientConn", "executeInMultiNodes", errors.ErrConnNotEqual.Error(), c.connectionId,
@@ -252,7 +270,7 @@ func (c *ClientConn) executeInMultiNodes(conns map[string]*backend.BackendConn, 
 	f := func(rs []interface{}, i int, execSqls []string, co *backend.BackendConn) {
 		var state string
 		for _, v := range execSqls {
-			startTime := time.Now().UnixNano()
+			startTime := time.Now()
 			r, err := co.Execute(v, args...)
 			if err != nil {
 				state = "ERROR"
@@ -261,7 +279,7 @@ func (c *ClientConn) executeInMultiNodes(conns map[string]*backend.BackendConn, 
 				state = "OK"
 				rs[i] = r
 			}
-			execTime := float64(time.Now().UnixNano()-startTime) / float64(time.Millisecond)
+			execTime := float64(time.Since(startTime).Microseconds()) / 1000
 			if c.proxy.logSql[c.proxy.logSqlIndex] != golog.LogSqlOff &&
 				execTime >= float64(c.proxy.slowLogTime[c.proxy.slowLogTimeIndex]) {
 				c.proxy.counter.IncrSlowLogTotal()
@@ -279,7 +297,7 @@ func (c *ClientConn) executeInMultiNodes(conns map[string]*backend.BackendConn, 
 
 	offset := 0
 	for nodeName, co := range conns {
-		s := sqls[nodeName] //[]string
+		s := sqls[nodeName] // []string
 		go f(rs, offset, s, co)
 		offset += len(s)
 	}
@@ -302,6 +320,7 @@ func (c *ClientConn) executeInMultiNodes(conns map[string]*backend.BackendConn, 
 }
 
 func (c *ClientConn) closeConn(conn *backend.BackendConn, rollback bool) {
+	// 事务连接由commit或者rollback中断, 通常是auto-commit=0或者显式事务
 	if c.isInTransaction() {
 		return
 	}
@@ -384,8 +403,8 @@ func (c *ClientConn) mergeExecResult(rs []*mysql.Result) error {
 		if r.InsertId == 0 {
 			r.InsertId = v.InsertId
 		} else if r.InsertId > v.InsertId {
-			//last insert id is first gen id for multi row inserted
-			//see http://dev.mysql.com/doc/refman/5.6/en/information-functions.html#function_last-insert-id
+			// last insert id is first gen id for multi row inserted
+			// see http://dev.mysql.com/doc/refman/5.6/en/information-functions.html#function_last-insert-id
 			r.InsertId = v.InsertId
 		}
 	}

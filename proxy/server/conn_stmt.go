@@ -63,6 +63,8 @@ func (c *ClientConn) handleStmtPrepare(sql string) error {
 	s := new(Stmt)
 
 	sql = strings.TrimRight(sql, ";")
+	c.command = mysql.COM_PREPARE_STR
+	c.sql = sql
 
 	var err error
 	s.s, err = sqlparser.Parse(sql)
@@ -193,6 +195,9 @@ func (c *ClientConn) handleStmtExecute(data []byte) error {
 			strconv.FormatUint(uint64(id), 10), "stmt_execute")
 	}
 
+	// prepare sql
+	c.sql = s.sql
+
 	flag := data[pos]
 	pos++
 	// now we only support CURSOR_TYPE_NO_CURSOR flag
@@ -239,14 +244,19 @@ func (c *ClientConn) handleStmtExecute(data []byte) error {
 
 	switch stmt := s.s.(type) {
 	case *sqlparser.Select:
+		c.command = mysql.COM_SELECT_STR
 		err = c.handlePrepareSelect(stmt, s.sql, s.args)
 	case *sqlparser.Insert:
+		c.command = mysql.COM_INSERT_STR
 		err = c.handlePrepareExec(s.s, s.sql, s.args)
 	case *sqlparser.Update:
+		c.command = mysql.COM_UPDATE_STR
 		err = c.handlePrepareExec(s.s, s.sql, s.args)
 	case *sqlparser.Delete:
+		c.command = mysql.COM_DELETE_STR
 		err = c.handlePrepareExec(s.s, s.sql, s.args)
 	case *sqlparser.Replace:
+		c.command = mysql.COM_DELETE_STR
 		err = c.handlePrepareExec(s.s, s.sql, s.args)
 	default:
 		err = fmt.Errorf("command %T not supported now", stmt)
@@ -510,6 +520,9 @@ func (c *ClientConn) handleStmtClose(data []byte) error {
 	if len(data) < 4 {
 		return nil
 	}
+
+	c.command = mysql.COM_CLOSE_STR
+	c.sql = "close statement"
 
 	id := binary.LittleEndian.Uint32(data[0:4])
 

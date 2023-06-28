@@ -3,7 +3,7 @@ WORKDIR /go/src/app
 ENV GOPROXY=https://goproxy.cn
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories && \
     apk update && \
-    apk add make
+    apk add make git
 ADD . .
 RUN CGO_ENABLED=0 make
 
@@ -14,6 +14,10 @@ RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositorie
     && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && echo "Asia/Shanghai" > /etc/timezone \
     && mkdir -p /etc/kingshard
+
+EXPOSE 9696
+EXPOSE 7080
+EXPOSE 9797
 
 COPY --from=builder /go/src/app/bin/kingshard /usr/local/bin/
 COPY --from=builder /go/src/app/etc/ks.yaml /etc/kingshard/

@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/flike/kingshard/mysql"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/flike/kingshard/backend"
 	"github.com/flike/kingshard/config"
@@ -52,6 +53,13 @@ const (
 	Unknown
 )
 
+type Metrics struct {
+	serverRequest    *prometheus.CounterVec
+	serverLatency    *prometheus.HistogramVec
+	serverConnection prometheus.Gauge
+	serverSlowLog    *prometheus.CounterVec
+}
+
 type Server struct {
 	cfg   *config.Config
 	addr  string
@@ -69,11 +77,13 @@ type Server struct {
 	allowips           [2][]IPInfo
 
 	counter *Counter
+	metrics *Metrics // metrics for server
+
 	nodes   map[string]*backend.Node
 	schemas map[string]*Schema // user : schema of user
 
 	listener net.Listener
-	running  bool
+	running  atomic.Bool
 
 	configUpdateMutex sync.RWMutex
 	configVer         uint32
@@ -282,7 +292,7 @@ func NewServer(cfg *config.Config) (*Server, error) {
 		s.schemas = schemas
 	}
 
-	for user, _ := range s.users {
+	for user := range s.users {
 		if _, exist := s.schemas[user]; !exist {
 			return nil, fmt.Errorf("user [%s] must have a schema", user)
 		}
@@ -296,6 +306,8 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	s.registerMetrics()
 
 	golog.Info("server", "NewServer", "Server running", 0,
 		"netProto",
@@ -341,7 +353,7 @@ func (s *Server) newClientConn(co net.Conn) *ClientConn {
 
 	c.status = mysql.SERVER_STATUS_AUTOCOMMIT
 
-	c.salt, _ = mysql.RandomBuf(20)
+	c.salt = mysql.RandomBuf(20)
 
 	c.txConns = make(map[*backend.Node]*backend.BackendConn)
 
@@ -358,6 +370,7 @@ func (s *Server) newClientConn(co net.Conn) *ClientConn {
 
 func (s *Server) onConn(c net.Conn) {
 	s.counter.IncrClientConns()
+	s.metrics.serverConnection.Inc()
 	conn := s.newClientConn(c) // 新建一个conn
 
 	defer func() {
@@ -374,9 +387,10 @@ func (s *Server) onConn(c net.Conn) {
 
 		conn.Close()
 		s.counter.DecrClientConns()
+		s.metrics.serverConnection.Dec()
 	}()
 
-	if allowConnect := conn.IsAllowConnect(); allowConnect == false {
+	if !conn.IsAllowConnect() {
 		err := mysql.NewError(mysql.ER_ACCESS_DENIED_ERROR, "ip address access denied by kingshard.")
 		conn.writeError(err)
 		conn.Close()
@@ -602,12 +616,12 @@ func (s *Server) SaveProxyConfig() error {
 }
 
 func (s *Server) Run() error {
-	s.running = true
+	s.running.Store(true)
 
 	// flush counter
 	go s.flushCounter()
 
-	for s.running {
+	for s.running.Load() {
 		conn, err := s.listener.Accept()
 		if err != nil {
 			golog.Error("server", "Run", err.Error(), 0)
@@ -621,7 +635,7 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) Close() {
-	s.running = false
+	s.running.Store(false)
 	if s.listener != nil {
 		s.listener.Close()
 	}
@@ -707,7 +721,7 @@ func (s *Server) DownMaster(node, masterAddr string) error {
 func (s *Server) DownSlave(node, slaveAddr string) error {
 	n := s.GetNode(node)
 	if n == nil {
-		return fmt.Errorf("invalid node [%s].", node)
+		return fmt.Errorf("invalid node [%s]", node)
 	}
 	return n.DownSlave(slaveAddr, backend.ManualDown)
 }
@@ -799,13 +813,12 @@ func (s *Server) UpdateConfig(newCfg *config.Config) {
 	// reset cfg
 	s.cfg = newCfg
 
-	if 0 == s.blacklistSqlsIndex {
-		s.blacklistSqls[1] = newBlackList
-		atomic.StoreInt32(&s.blacklistSqlsIndex, 1)
-
-	} else {
+	if s.blacklistSqlsIndex != 0 {
 		s.blacklistSqls[0] = newBlackList
 		atomic.StoreInt32(&s.blacklistSqlsIndex, 0)
+	} else {
+		s.blacklistSqls[1] = newBlackList
+		atomic.StoreInt32(&s.blacklistSqlsIndex, 1)
 	}
 
 	_, another, index := s.allowipsIndex.Get()
@@ -877,4 +890,47 @@ func (s *Server) GetMonitorData() map[string]map[string]string {
 	}
 
 	return data
+}
+
+func (s *Server) registerMetrics() {
+	metricsLabels := prometheus.Labels{
+		"app_id":      "app_id",
+		"instance_id": "instance_id",
+	}
+	s.metrics = &Metrics{
+		serverRequest: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace:   "kingshard",
+			Subsystem:   "server",
+			Name:        "request",
+			Help:        "server process requests",
+			ConstLabels: metricsLabels,
+		}, []string{"command"}),
+		serverLatency: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+			Namespace:   "kingshard",
+			Subsystem:   "server",
+			Name:        "latency",
+			Help:        "server process latency",
+			ConstLabels: metricsLabels,
+			Buckets:     []float64{1, 5, 10, 15, 25, 50, 100, 150, 250, 500, 750, 1000, 1500, 2000, 3000, 6000, 10000},
+		}, []string{"command"}),
+		serverConnection: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace:   "kingshard",
+			Subsystem:   "server",
+			Name:        "connection",
+			Help:        "sever connection",
+			ConstLabels: metricsLabels,
+		}),
+		serverSlowLog: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace:   "kingshard",
+			Subsystem:   "server",
+			Name:        "slow_log",
+			Help:        "record server slow log count",
+			ConstLabels: metricsLabels,
+		}, []string{"fingerprint"}),
+	}
+
+	prometheus.MustRegister(s.metrics.serverConnection)
+	prometheus.MustRegister(s.metrics.serverSlowLog)
+	prometheus.MustRegister(s.metrics.serverLatency)
+	prometheus.MustRegister(s.metrics.serverRequest)
 }

@@ -33,7 +33,7 @@ func TestCalcPassword(t *testing.T) {
 		scramble:
 			fbc71db5ac3d7b51048d1a1d88c1677f34bcca11
 	*/
-	test, _ := RandomBuf(20)
+	test := RandomBuf(20)
 	hex_test := hex.EncodeToString(test)
 	t.Logf("rnd seed: %s, %s", hack.String(test), hex_test)
 

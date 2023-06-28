@@ -95,7 +95,7 @@ func (c *ClientConn) writeFieldList(status uint16, fs []*mysql.Field) error {
 	return err
 }
 
-//处理select语句
+// 处理select语句
 func (c *ClientConn) handleSelect(stmt *sqlparser.Select, args []interface{}) error {
 	var fromSlave bool = true
 	plan, err := c.schema.rule.BuildPlan(c.db, stmt)
@@ -159,7 +159,7 @@ func (c *ClientConn) mergeSelectResult(rs []*mysql.Result, stmt *sqlparser.Selec
 	return c.writeResultset(r.Status, r.Resultset)
 }
 
-//only process last_inser_id
+// only process last_inser_id
 func (c *ClientConn) handleSimpleSelect(stmt *sqlparser.SimpleSelect) error {
 	nonStarExpr, _ := stmt.SelectExprs[0].(*sqlparser.NonStarExpr)
 	var name string = hack.String(nonStarExpr.As)
@@ -189,7 +189,7 @@ func (c *ClientConn) handleSimpleSelect(stmt *sqlparser.SimpleSelect) error {
 	return c.writeResultset(c.status, r)
 }
 
-//build select result with group by opt
+// build select result with group by opt
 func (c *ClientConn) buildSelectGroupByResult(rs []*mysql.Result,
 	stmt *sqlparser.Select) (*mysql.Result, error) {
 	var err error
@@ -235,7 +235,7 @@ func (c *ClientConn) buildSelectGroupByResult(rs []*mysql.Result,
 	return r, nil
 }
 
-//only merge result with aggregate function in group by opt
+// only merge result with aggregate function in group by opt
 func (c *ClientConn) mergeGroupByWithFunc(rs []*mysql.Result, groupByIndexs []int,
 	funcExprs map[int]string) (*mysql.Result, error) {
 	r := rs[0]
@@ -263,7 +263,7 @@ func (c *ClientConn) mergeGroupByWithFunc(rs []*mysql.Result, groupByIndexs []in
 	return r, nil
 }
 
-//only merge result without aggregate function in group by opt
+// only merge result without aggregate function in group by opt
 func (c *ClientConn) mergeGroupByWithoutFunc(rs []*mysql.Result,
 	groupByIndexs []int) (*mysql.Result, error) {
 	r := rs[0]
@@ -384,7 +384,7 @@ func (c *ClientConn) loadResultWithFuncIntoMap(rs []*mysql.Result,
 	return resultMap, nil
 }
 
-//build select result without group by opt
+// build select result without group by opt
 func (c *ClientConn) buildSelectOnlyResult(rs []*mysql.Result,
 	stmt *sqlparser.Select) (*mysql.Result, error) {
 	var err error
@@ -509,7 +509,7 @@ func (c *ClientConn) buildFuncExprResult(stmt *sqlparser.Select,
 	return r, nil
 }
 
-//get the index of funcExpr, the value is function name
+// get the index of funcExpr, the value is function name
 func (c *ClientConn) getFuncExprs(stmt *sqlparser.Select) map[int]string {
 	var f *sqlparser.FuncExpr
 	funcExprs := make(map[int]string)
@@ -698,7 +698,7 @@ func (c *ClientConn) getMinFuncExprValue(
 	return min, nil
 }
 
-//calculate the the value funcExpr(sum or count)
+// calculate the the value funcExpr(sum or count)
 func (c *ClientConn) calFuncExprValue(funcName string,
 	rs []*mysql.Result, index int) (interface{}, error) {
 
@@ -749,7 +749,7 @@ func (c *ClientConn) calFuncExprValue(funcName string,
 	return nil, nil
 }
 
-//build values of resultset,only build one row
+// build values of resultset,only build one row
 func (c *ClientConn) buildFuncExprValues(rs []*mysql.Result,
 	funcExprValues map[int]interface{}) ([][]interface{}, error) {
 	values := make([][]interface{}, 0, 1)

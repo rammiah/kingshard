@@ -76,7 +76,7 @@ func (plan *Plan) getTableIndexs(expr sqlparser.BoolExpr) ([]int, error) {
 	return nil, nil
 }
 
-//Get the table index of hash shard type
+// Get the table index of hash shard type
 func (plan *Plan) getHashShardTableIndex(expr sqlparser.BoolExpr) ([]int, error) {
 	var index int
 	var err error
@@ -107,7 +107,7 @@ func (plan *Plan) getHashShardTableIndex(expr sqlparser.BoolExpr) ([]int, error)
 	return plan.RouteTableIndexs, nil
 }
 
-//Get the table index of range shard type
+// Get the table index of range shard type
 func (plan *Plan) getRangeShardTableIndex(expr sqlparser.BoolExpr) ([]int, error) {
 	var index int
 	var err error
@@ -199,7 +199,7 @@ func (plan *Plan) getRangeShardTableIndex(expr sqlparser.BoolExpr) ([]int, error
 	return plan.RouteTableIndexs, nil
 }
 
-//Get the table index of date shard type(date_year,date_month,date_day).
+// Get the table index of date shard type(date_year,date_month,date_day).
 func (plan *Plan) getDateShardTableIndex(expr sqlparser.BoolExpr) ([]int, error) {
 	var index int
 	var err error
@@ -279,7 +279,7 @@ func (plan *Plan) getDateShardTableIndex(expr sqlparser.BoolExpr) ([]int, error)
 	return plan.RouteTableIndexs, nil
 }
 
-//计算表下标和node下标
+// 计算表下标和node下标
 func (plan *Plan) calRouteIndexs() error {
 	var err error
 	nodesCount := len(plan.Rule.Nodes)
@@ -288,7 +288,7 @@ func (plan *Plan) calRouteIndexs() error {
 		plan.RouteNodeIndexs = []int{0}
 		return nil
 	}
-	if plan.Criteria == nil { //如果没有分表条件，则是全子表扫描
+	if plan.Criteria == nil { // 如果没有分表条件，则是全子表扫描
 		if plan.Rule.Type != DefaultRuleType {
 			golog.Error("Plan", "calRouteIndexs", "plan have no criteria", 0,
 				"type", plan.Rule.Type)
@@ -412,7 +412,7 @@ func (plan *Plan) getTableIndexByBoolExpr(node sqlparser.BoolExpr) ([]int, error
 	return plan.Rule.SubTableIndexs, nil
 }
 
-//获得(12,14,23)对应的table index
+// 获得(12,14,23)对应的table index
 func (plan *Plan) getTableIndexsByTuple(valExpr sqlparser.ValExpr) ([]int, error) {
 	shardset := make(map[int]sqlparser.ValTuple)
 	switch node := valExpr.(type) {
@@ -445,7 +445,7 @@ func (plan *Plan) getTableIndexsByTuple(valExpr sqlparser.ValExpr) ([]int, error
 	return shardlist, nil
 }
 
-//get the insert table index and set plan.Rows
+// get the insert table index and set plan.Rows
 func (plan *Plan) getInsertTableIndex(vals sqlparser.Values) ([]int, error) {
 	tableIndexs := make([]int, 0, len(vals))
 	rowsToTindex := make(map[int][]sqlparser.Tuple)
@@ -546,9 +546,9 @@ func makeList(start, end int) []int {
 	return list
 }
 
-//indexes is sequential
-//if value is 2016, and indexs is [2015,2016,2017]
-//the result is [2015,2016]
+// indexes is sequential
+// if value is 2016, and indexs is [2015,2016,2017]
+// the result is [2015,2016]
 func makeLeList(value int, indexes []int) []int {
 	for k, v := range indexes {
 		if v == value {
@@ -558,9 +558,9 @@ func makeLeList(value int, indexes []int) []int {
 	return nil
 }
 
-//indexes is sequential
-//if value is 2016, and indexs is [2015,2016,2017,2018]
-//the result is [2016,2017,2018]
+// indexes is sequential
+// if value is 2016, and indexs is [2015,2016,2017,2018]
+// the result is [2016,2017,2018]
 func makeGeList(value int, indexes []int) []int {
 	for k, v := range indexes {
 		if v == value {
@@ -570,9 +570,9 @@ func makeGeList(value int, indexes []int) []int {
 	return nil
 }
 
-//indexes is sequential
-//if value is 2016, and indexs is [2015,2016,2017,2018]
-//the result is [2015]
+// indexes is sequential
+// if value is 2016, and indexs is [2015,2016,2017,2018]
+// the result is [2015]
 func makeLtList(value int, indexes []int) []int {
 	for k, v := range indexes {
 		if v == value {
@@ -582,9 +582,9 @@ func makeLtList(value int, indexes []int) []int {
 	return nil
 }
 
-//indexes is sequential
-//if value is 2016, and indexs is [2015,2016,2017,2018]
-//the result is [2017,2018]
+// indexes is sequential
+// if value is 2016, and indexs is [2015,2016,2017,2018]
+// the result is [2017,2018]
 func makeGtList(value int, indexes []int) []int {
 	for k, v := range indexes {
 		if v == value {
@@ -594,9 +594,9 @@ func makeGtList(value int, indexes []int) []int {
 	return nil
 }
 
-//indexes is sequential
-//if start is 2016, end is 2017. indexs is [2015,2016,2017,2018]
-//the result is [2016,2017]
+// indexes is sequential
+// if start is 2016, end is 2017. indexs is [2015,2016,2017,2018]
+// the result is [2016,2017]
 func makeBetweenList(start, end int, indexes []int) []int {
 	var startIndex, endIndex int
 	var SetStart bool

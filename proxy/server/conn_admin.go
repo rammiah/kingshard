@@ -414,7 +414,7 @@ func (c *ClientConn) handleShowProxyConfig() (*mysql.Resultset, error) {
 	for name := range c.schema.nodes {
 		nodeNames = append(nodeNames, name)
 	}
-	for user, _ := range c.proxy.users {
+	for user := range c.proxy.users {
 		users = append(users, user)
 	}
 
@@ -463,8 +463,8 @@ func (c *ClientConn) handleShowNodeConfig() (*mysql.Resultset, error) {
 	//var nodeRows [][]string
 	for name, node := range c.schema.nodes {
 		//"master"
-		idleConns,cacheConns,pushConnCount,popConnCount := node.Master.ConnCount()
-		
+		idleConns, cacheConns, pushConnCount, popConnCount := node.Master.ConnCount()
+
 		rows = append(
 			rows,
 			[]string{
@@ -482,7 +482,7 @@ func (c *ClientConn) handleShowNodeConfig() (*mysql.Resultset, error) {
 		//"slave"
 		for _, slave := range node.Slave {
 			if slave != nil {
-				idleConns,cacheConns,pushConnCount,popConnCount := slave.ConnCount()
+				idleConns, cacheConns, pushConnCount, popConnCount := slave.ConnCount()
 
 				rows = append(
 					rows,
@@ -618,8 +618,7 @@ func (c *ClientConn) handleShowProxyStatus() (*mysql.Resultset, error) {
 		"status",
 	}
 
-	var status string
-	status = c.proxy.Status()
+	status := c.proxy.Status()
 	rows = append(rows,
 		[]string{
 			status,

@@ -21,11 +21,13 @@ import (
 	"net"
 	"runtime"
 	"sync"
+	"time"
 
 	"github.com/flike/kingshard/backend"
 	"github.com/flike/kingshard/core/golog"
 	"github.com/flike/kingshard/core/hack"
 	"github.com/flike/kingshard/mysql"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // client <-> proxy
@@ -66,6 +68,10 @@ type ClientConn struct {
 	stmts map[uint32]*Stmt // prepare相关,client端到proxy的stmt
 
 	configVer uint32 // check config version for reload online
+
+	commandStart time.Time // command start time, used for latency
+	command      string    // command in each execution
+	sql          string    // sql runs in execution
 }
 
 var DEFAULT_CAPABILITY uint32 = mysql.CLIENT_LONG_PASSWORD |
@@ -181,6 +187,7 @@ func (c *ClientConn) writeInitialHandshake() error {
 
 	// filter [00]
 	data = append(data, 0)
+
 	// send plugin auth name
 	data = append(data, []byte("mysql_native_password")...)
 	data = append(data, 0)
@@ -298,6 +305,9 @@ func (c *ClientConn) Run() {
 	defer c.clean()
 	for {
 		data, err := c.readPacket()
+		// reset time and command for sql
+		c.commandStart = time.Now()
+		c.command = ""
 
 		if err != nil {
 			return
@@ -338,6 +348,28 @@ func (c *ClientConn) Run() {
 }
 
 func (c *ClientConn) dispatch(data []byte) error {
+	defer func() {
+		if c.command == "" {
+			return
+		}
+		cost := float64(time.Since(c.commandStart).Microseconds()) / 1000
+		c.proxy.metrics.serverRequest.With(prometheus.Labels{
+			"command": c.command,
+		}).Inc()
+		c.proxy.metrics.serverLatency.With(prometheus.Labels{
+			"command": c.command,
+		}).Observe(cost)
+		if cost >= float64(c.proxy.slowLogTime[c.proxy.slowLogTimeIndex]) {
+			finger := mysql.GetFingerprint(c.sql)
+			if finger == "" {
+				finger = c.sql
+			}
+			c.proxy.metrics.serverSlowLog.With(prometheus.Labels{
+				"fingerprint": finger,
+			}).Inc()
+		}
+	}()
+
 	c.proxy.counter.IncrClientQPS()
 	cmd := data[0]
 	data = data[1:]
@@ -348,6 +380,7 @@ func (c *ClientConn) dispatch(data []byte) error {
 		c.Close()
 		return nil
 	case mysql.COM_QUERY:
+		// add prometheus metric
 		return c.handleQuery(hack.String(data))
 	case mysql.COM_PING:
 		return c.writeOK(nil)
@@ -372,8 +405,6 @@ func (c *ClientConn) dispatch(data []byte) error {
 		golog.Error("ClientConn", "dispatch", msg, 0)
 		return mysql.NewError(mysql.ER_UNKNOWN_ERROR, msg)
 	}
-
-	return nil
 }
 
 func (c *ClientConn) writeOK(r *mysql.Result) error {

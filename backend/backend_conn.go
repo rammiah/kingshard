@@ -728,26 +728,6 @@ func (c *Conn) handleOKPacket(data []byte) (*mysql.Result, error) {
 	return r, nil
 }
 
-func (c *Conn) handleAuthMorePacket(data []byte) (*mysql.Result, error) {
-	// fmt.Printf("%x\n", data)
-	if len(data) == 0 {
-		return nil, nil
-	}
-	if len(data) != 1 {
-		return nil, mysql.ErrMalformPacket
-
-	}
-	status := data[0]
-	switch status {
-	case 3:
-		return c.readOK()
-	case 4:
-		return nil, mysql.ErrFullAuthNotSupported
-	}
-
-	return nil, mysql.ErrMalformPacket
-}
-
 func (c *Conn) handleErrorPacket(data []byte) error {
 	e := new(mysql.SqlError)
 
@@ -776,8 +756,6 @@ func (c *Conn) readOK() (*mysql.Result, error) {
 
 	if data[0] == mysql.OK_HEADER {
 		return c.handleOKPacket(data)
-	} else if data[0] == mysql.AUTH_MORE_HEADER {
-		return c.handleAuthMorePacket(data[1:])
 	} else if data[0] == mysql.ERR_HEADER {
 		return nil, c.handleErrorPacket(data)
 	} else {

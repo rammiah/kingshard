@@ -42,7 +42,8 @@ func (c *ClientConn) isBlacklistSql(sql string) bool {
 	return false
 }
 
-// preprocessing sql before parse sql
+// preprocessing sql before parse sql, work for single node without shard
+// check blacklist sql, get execution db, get backend connection
 func (c *ClientConn) preHandleShard(sql string) (bool, error) {
 	var rs []*mysql.Result
 	var err error
@@ -104,7 +105,7 @@ func (c *ClientConn) preHandleShard(sql string) (bool, error) {
 	}
 
 	if len(rs) == 0 {
-		msg := fmt.Sprintf("result is empty")
+		msg := "result is empty"
 		golog.Error("ClientConn", "handleUnsupport", msg, 0, "sql", sql)
 		return false, mysql.NewError(mysql.ER_UNKNOWN_ERROR, msg)
 	}
@@ -134,12 +135,15 @@ func (c *ClientConn) GetTransExecDB(tokens []string, sql string) (*ExecuteDB, er
 	// transaction execute in master db
 	executeDB.IsSlave = false
 
-	if 2 <= tokensLen {
+	if tokensLen >= 2 {
+		// process in refereed node
 		if tokens[0][0] == mysql.COMMENT_PREFIX {
 			nodeName := strings.Trim(tokens[0], mysql.COMMENT_STRING)
 			if c.schema.nodes[nodeName] != nil {
 				executeDB.ExecNode = c.schema.nodes[nodeName]
 			}
+			// referred in comment, try to get sql command type
+			c.command = GetSqlCommand(tokens[1]) // second is the command
 		}
 	}
 
@@ -162,23 +166,33 @@ func (c *ClientConn) GetTransExecDB(tokens []string, sql string) (*ExecuteDB, er
 // if sql need shard return nil, else return the unshard db
 func (c *ClientConn) GetExecDB(tokens []string, sql string) (*ExecuteDB, error) {
 	tokensLen := len(tokens)
-	if 0 < tokensLen {
+	if tokensLen > 0 {
 		tokenId, ok := mysql.PARSE_TOKEN_MAP[strings.ToLower(tokens[0])]
-		if ok == true {
+		if ok {
 			switch tokenId {
 			case mysql.TK_ID_SELECT:
+				c.command = mysql.COM_SELECT_STR
 				return c.getSelectExecDB(sql, tokens, tokensLen)
 			case mysql.TK_ID_DELETE:
+				c.command = mysql.COM_DELETE_STR
 				return c.getDeleteExecDB(sql, tokens, tokensLen)
-			case mysql.TK_ID_INSERT, mysql.TK_ID_REPLACE:
+			case mysql.TK_ID_INSERT:
+				c.command = mysql.COM_INSERT_STR
+				return c.getInsertOrReplaceExecDB(sql, tokens, tokensLen)
+			case mysql.TK_ID_REPLACE:
+				c.command = mysql.COM_REPLACE_STR
 				return c.getInsertOrReplaceExecDB(sql, tokens, tokensLen)
 			case mysql.TK_ID_UPDATE:
+				c.command = mysql.COM_UPDATE_STR
 				return c.getUpdateExecDB(sql, tokens, tokensLen)
 			case mysql.TK_ID_SET:
+				c.command = mysql.COM_SET_STR
 				return c.getSetExecDB(sql, tokens, tokensLen)
 			case mysql.TK_ID_SHOW:
+				c.command = mysql.COM_SHOW_STR
 				return c.getShowExecDB(sql, tokens, tokensLen)
 			case mysql.TK_ID_TRUNCATE:
+				c.command = mysql.COM_TRUNCATE_STR
 				return c.getTruncateExecDB(sql, tokens, tokensLen)
 			default:
 				return nil, nil

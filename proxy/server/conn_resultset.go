@@ -179,8 +179,7 @@ func (c *ClientConn) writeResultset(status uint16, r *mysql.Resultset) error {
 		}
 	}
 
-	total, err = c.writeEOFBatch(total, status, true)
-	total = nil
+	_, err = c.writeEOFBatch(total, status, true)
 	if err != nil {
 		return err
 	}

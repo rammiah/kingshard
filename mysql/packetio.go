@@ -81,7 +81,7 @@ func (p *PacketIO) ReadPacket() ([]byte, error) {
 	}
 }
 
-//data already have header
+// data already have header
 func (p *PacketIO) WritePacket(data []byte) error {
 	length := len(data) - 4
 
@@ -121,8 +121,8 @@ func (p *PacketIO) WritePacket(data []byte) error {
 
 func (p *PacketIO) WritePacketBatch(total, data []byte, direct bool) ([]byte, error) {
 	if data == nil {
-		//only flush the buffer
-		if direct == true {
+		// only flush the buffer
+		if direct {
 			n, err := p.wb.Write(total)
 			if err != nil {
 				return nil, ErrBadConn

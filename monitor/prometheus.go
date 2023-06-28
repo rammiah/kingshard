@@ -47,7 +47,7 @@ func NewPrometheus(addr string, svr *server.Server) (*Prometheus, error) {
 
 // 启动prometheus的http监控
 func (p *Prometheus) Run() {
-	//设置标签及注册
+	// 设置标签及注册
 	data := p.svr.GetMonitorData()
 
 	for addr, item := range data {
@@ -122,7 +122,6 @@ func (p *Prometheus) flush() {
 					continue
 				}
 
-				// val, _ := strconv.ParseFloat(item[name], )
 				gauge.Set(cast.ToFloat64(item[name]))
 			}
 		}

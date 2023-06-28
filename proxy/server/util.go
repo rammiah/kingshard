@@ -1,9 +1,12 @@
 package server
 
 import (
-	"net"
-	"sync/atomic"
 	"errors"
+	"net"
+	"strings"
+	"sync/atomic"
+
+	"github.com/flike/kingshard/mysql"
 )
 
 type BoolIndex struct {
@@ -64,5 +67,32 @@ func (t *IPInfo) Match(ip net.IP) bool {
 		return t.ipNet.Contains(ip)
 	} else {
 		return t.ip.Equal(ip)
+	}
+}
+
+func GetSqlCommand(token string) string {
+	tokenId, ok := mysql.PARSE_TOKEN_MAP[strings.ToLower(token)]
+	if !ok {
+		return ""
+	}
+	switch tokenId {
+	case mysql.TK_ID_SELECT:
+		return mysql.COM_SELECT_STR
+	case mysql.TK_ID_DELETE:
+		return mysql.COM_DELETE_STR
+	case mysql.TK_ID_INSERT:
+		return mysql.COM_INSERT_STR
+	case mysql.TK_ID_REPLACE:
+		return mysql.COM_REPLACE_STR
+	case mysql.TK_ID_UPDATE:
+		return mysql.COM_UPDATE_STR
+	case mysql.TK_ID_SET:
+		return mysql.COM_SET_STR
+	case mysql.TK_ID_SHOW:
+		return mysql.COM_SHOW_STR
+	case mysql.TK_ID_TRUNCATE:
+		return mysql.COM_TRUNCATE_STR
+	default:
+		return ""
 	}
 }

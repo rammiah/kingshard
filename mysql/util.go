@@ -84,15 +84,15 @@ func CalcSha2Password(salt []byte, password []byte) []byte {
 	return stage1
 }
 
-// seed must be in the range of ascii
-func RandomBuf(size int) ([]byte, error) {
+// RandomBuf generate a nonce string for client connection, seed must be in the range of ascii
+func RandomBuf(size int) []byte {
 	buf := make([]byte, size)
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	min, max := 30, 127
 	for i := 0; i < size; i++ {
 		buf[i] = byte(min + r.Intn(max-min))
 	}
-	return buf, nil
+	return buf
 }
 
 func LengthEncodedInt(b []byte) (num uint64, isNull bool, n int) {
