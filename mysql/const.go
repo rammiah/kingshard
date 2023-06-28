@@ -19,10 +19,13 @@ const (
 	MaxPayloadLen      int    = 1<<24 - 1
 	TimeFormat         string = "2006-01-02 15:04:05"
 	ServerVersion      string = "5.6.20-kingshard"
+	DefaultAuthPlugin         = "mysql_native_password"
 )
 
 const (
-	OK_HEADER          byte = 0x00
+	OK_HEADER        byte = 0x00
+	AUTH_MORE_HEADER byte = 0x01
+
 	ERR_HEADER         byte = 0xff
 	EOF_HEADER         byte = 0xfe
 	LocalInFile_HEADER byte = 0xfb
@@ -103,7 +106,7 @@ const (
 	CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA
 )
 
-//https://dev.mysql.com/doc/internals/en/com-query-response.html#packet-Protocol::ColumnType
+// https://dev.mysql.com/doc/internals/en/com-query-response.html#packet-Protocol::ColumnType
 const (
 	MYSQL_TYPE_DECIMAL byte = iota
 	MYSQL_TYPE_TINY
@@ -207,7 +210,7 @@ var (
 	TK_STR_TRANSACTION    = "transaction"
 	TK_STR_LAST_INSERT_ID = "last_insert_id()"
 	TK_STR_MASTER_HINT    = "*master*"
-	//show
+	// show
 	TK_STR_COLUMNS = "columns"
 	TK_STR_FIELDS  = "fields"
 

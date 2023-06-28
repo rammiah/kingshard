@@ -23,6 +23,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -33,7 +34,6 @@ import (
 	"github.com/flike/kingshard/core/errors"
 	"github.com/flike/kingshard/core/golog"
 	"github.com/flike/kingshard/proxy/router"
-	"sync"
 )
 
 type Schema struct {
@@ -55,7 +55,7 @@ const (
 type Server struct {
 	cfg   *config.Config
 	addr  string
-	users map[string]string //user : psw
+	users map[string]string // user : psw
 
 	statusIndex        int32
 	status             [2]int32
@@ -70,7 +70,7 @@ type Server struct {
 
 	counter *Counter
 	nodes   map[string]*backend.Node
-	schemas map[string]*Schema //user : schema of user
+	schemas map[string]*Schema // user : schema of user
 
 	listener net.Listener
 	running  bool
@@ -94,7 +94,7 @@ func (s *Server) Status() string {
 	return status
 }
 
-//TODO
+// TODO
 func parseAllowIps(allowIpsStr string) ([]IPInfo, error) {
 	if len(allowIpsStr) == 0 {
 		return make([]IPInfo, 0, 10), nil
@@ -109,7 +109,7 @@ func parseAllowIps(allowIpsStr string) ([]IPInfo, error) {
 	return allowIpsList, nil
 }
 
-//parse the blacklist sql file
+// parse the blacklist sql file
 func parseBlackListSqls(blackListFilePath string) (*BlacklistSqls, error) {
 	bs := new(BlacklistSqls)
 	bs.sqls = make(map[string]string)
@@ -123,7 +123,7 @@ func parseBlackListSqls(blackListFilePath string) (*BlacklistSqls, error) {
 		rd := bufio.NewReader(file)
 		for {
 			line, err := rd.ReadString('\n')
-			//end of file
+			// end of file
 			if err == io.EOF {
 				if len(line) != 0 {
 					fingerPrint := mysql.GetFingerprint(line)
@@ -241,18 +241,18 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	s.configVer = 0
 
 	if len(cfg.Charset) == 0 {
-		cfg.Charset = mysql.DEFAULT_CHARSET //utf8
+		cfg.Charset = mysql.DEFAULT_CHARSET // utf8
 	}
 	cid, ok := mysql.CharsetIds[cfg.Charset]
 	if !ok {
 		return nil, errors.ErrInvalidCharset
 	}
-	//change the default charset
+	// change the default charset
 	mysql.DEFAULT_CHARSET = cfg.Charset
 	mysql.DEFAULT_COLLATION_ID = cid
 	mysql.DEFAULT_COLLATION_NAME = mysql.Collations[cid]
 
-	//init black sql list
+	// init black sql list
 	if bs, err := parseBlackListSqls(s.cfg.BlsFile); err != nil {
 		return nil, err
 	} else {
@@ -261,7 +261,7 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	}
 	atomic.StoreInt32(&s.blacklistSqlsIndex, 0)
 
-	//init allow ip list
+	// init allow ip list
 	if allowIps, err := parseAllowIps(s.cfg.AllowIps); err != nil {
 		return nil, err
 	} else {
@@ -316,11 +316,11 @@ func (s *Server) newClientConn(co net.Conn) *ClientConn {
 	c := new(ClientConn)
 	tcpConn := co.(*net.TCPConn)
 
-	//SetNoDelay controls whether the operating system should delay packet transmission
+	// SetNoDelay controls whether the operating system should delay packet transmission
 	// in hopes of sending fewer packets (Nagle's algorithm).
 	// The default is true (no delay),
 	// meaning that data is sent as soon as possible after a Write.
-	//I set this option false.
+	// I set this option false.
 	tcpConn.SetNoDelay(false)
 	c.c = tcpConn
 
@@ -358,14 +358,14 @@ func (s *Server) newClientConn(co net.Conn) *ClientConn {
 
 func (s *Server) onConn(c net.Conn) {
 	s.counter.IncrClientConns()
-	conn := s.newClientConn(c) //新建一个conn
+	conn := s.newClientConn(c) // 新建一个conn
 
 	defer func() {
 		err := recover()
 		if err != nil {
 			const size = 4096
 			buf := make([]byte, size)
-			buf = buf[:runtime.Stack(buf, false)] //获得当前goroutine的stacktrace
+			buf = buf[:runtime.Stack(buf, false)] // 获得当前goroutine的stacktrace
 			golog.Error("server", "onConn", "error", 0,
 				"remoteAddr", c.RemoteAddr().String(),
 				"stack", string(buf),
@@ -638,7 +638,7 @@ func (s *Server) DeleteSlave(node string, addr string) error {
 		return err
 	}
 
-	//sync node slave to global config
+	// sync node slave to global config
 	for i, v1 := range s.cfg.Nodes {
 		if node == v1.Name {
 			s1 := strings.Split(v1.Slave, backend.SlaveSplit)
@@ -666,7 +666,7 @@ func (s *Server) AddSlave(node string, addr string) error {
 		return err
 	}
 
-	//sync node slave to global config
+	// sync node slave to global config
 	for i, v1 := range s.cfg.Nodes {
 		if v1.Name == node {
 			s1 := strings.Split(v1.Slave, backend.SlaveSplit)
@@ -767,13 +767,13 @@ func (s *Server) UpdateConfig(newCfg *config.Config) {
 		return
 	}
 
-	//parse new nodes
+	// parse new nodes
 	nodes, err := parseNodes(newCfg.Nodes)
 	if nil != err {
 		golog.Error("Server", "UpdateConfig", err.Error(), 0)
 		return
 	}
-	//parse new schemas
+	// parse new schemas
 	newSchemas, err := parseSchemaList(newCfg.SchemaList, nodes)
 	if nil != err {
 		golog.Error("Server", "UpdateConfig", err.Error(), 0)
@@ -792,11 +792,11 @@ func (s *Server) UpdateConfig(newCfg *config.Config) {
 		}
 	}
 
-	//lock stop new conn from clients
+	// lock stop new conn from clients
 	s.configUpdateMutex.Lock()
 	defer s.configUpdateMutex.Unlock()
 
-	//reset cfg
+	// reset cfg
 	s.cfg = newCfg
 
 	if 0 == s.blacklistSqlsIndex {
@@ -829,48 +829,48 @@ func (s *Server) UpdateConfig(newCfg *config.Config) {
 
 	s.ChangeSlowLogTime(fmt.Sprintf("%d", newCfg.SlowLogTime))
 
-	//reset nodes: old nodes offline (stop check thread)
+	// reset nodes: old nodes offline (stop check thread)
 	for _, n := range s.nodes {
 		n.Online = false
 	}
 	s.nodes = nodes
 
-	//reset schema
+	// reset schema
 	s.schemas = newSchemas
 
-	//version update
+	// version update
 	s.configVer += 1
 }
 
-func (s *Server) GetMonitorData() map[string]map[string]string{
+func (s *Server) GetMonitorData() map[string]map[string]string {
 	data := make(map[string]map[string]string)
 
 	// get all node's monitor data
 	for _, node := range s.nodes {
-		//get master monitor data
+		// get master monitor data
 		dbData := make(map[string]string)
-		idleConns,cacheConns,pushConnCount,popConnCount := node.Master.ConnCount()
+		idleConns, cacheConns, pushConnCount, popConnCount := node.Master.ConnCount()
 
-		dbData["idleConn"] 		= strconv.Itoa(idleConns)
-		dbData["cacheConns"] 	= strconv.Itoa(cacheConns)
+		dbData["idleConn"] = strconv.Itoa(idleConns)
+		dbData["cacheConns"] = strconv.Itoa(cacheConns)
 		dbData["pushConnCount"] = strconv.FormatInt(pushConnCount, 10)
-		dbData["popConnCount"] 	= strconv.FormatInt(popConnCount, 10)
-		dbData["maxConn"]	= fmt.Sprintf("%d", node.Cfg.MaxConnNum)
-		dbData["type"] 		= "master"
+		dbData["popConnCount"] = strconv.FormatInt(popConnCount, 10)
+		dbData["maxConn"] = fmt.Sprintf("%d", node.Cfg.MaxConnNum)
+		dbData["type"] = "master"
 
 		data[node.Master.Addr()] = dbData
 
-		//get all slave monitor data
+		// get all slave monitor data
 		for _, slaveNode := range node.Slave {
 			slaveDbData := make(map[string]string)
-			idleConns,cacheConns,pushConnCount,popConnCount := slaveNode.ConnCount()
-			
-			slaveDbData["idleConn"] 		= strconv.Itoa(idleConns)
-			slaveDbData["cacheConns"] 		= strconv.Itoa(cacheConns)
-			slaveDbData["pushConnCount"] 	= strconv.FormatInt(pushConnCount, 10)
-			slaveDbData["popConnCount"] 	= strconv.FormatInt(popConnCount, 10)
-			slaveDbData["maxConn"]	= fmt.Sprintf("%d", node.Cfg.MaxConnNum)
-			slaveDbData["type"] 	= "slave"
+			idleConns, cacheConns, pushConnCount, popConnCount := slaveNode.ConnCount()
+
+			slaveDbData["idleConn"] = strconv.Itoa(idleConns)
+			slaveDbData["cacheConns"] = strconv.Itoa(cacheConns)
+			slaveDbData["pushConnCount"] = strconv.FormatInt(pushConnCount, 10)
+			slaveDbData["popConnCount"] = strconv.FormatInt(popConnCount, 10)
+			slaveDbData["maxConn"] = fmt.Sprintf("%d", node.Cfg.MaxConnNum)
+			slaveDbData["type"] = "slave"
 
 			data[slaveNode.Addr()] = slaveDbData
 		}

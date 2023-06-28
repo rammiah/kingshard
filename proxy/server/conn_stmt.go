@@ -84,7 +84,7 @@ func (c *ClientConn) handleStmtPrepare(sql string) error {
 
 	err = co.UseDB(c.db)
 	if err != nil {
-		//reset the database to null
+		// reset the database to null
 		c.db = ""
 		return fmt.Errorf("prepare error %s", err)
 	}
@@ -118,17 +118,17 @@ func (c *ClientConn) writePrepare(s *Stmt) error {
 	var err error
 	data := make([]byte, 4, 128)
 	total := make([]byte, 0, 1024)
-	//status ok
+	// status ok
 	data = append(data, 0)
-	//stmt id
+	// stmt id
 	data = append(data, mysql.Uint32ToBytes(s.id)...)
-	//number columns
+	// number columns
 	data = append(data, mysql.Uint16ToBytes(uint16(s.columns))...)
-	//number params
+	// number params
 	data = append(data, mysql.Uint16ToBytes(uint16(s.params))...)
-	//filter [00]
+	// filter [00]
 	data = append(data, 0)
-	//warning count
+	// warning count
 	data = append(data, 0, 0)
 
 	total, err = c.writePacketBatch(total, data, false)
@@ -195,12 +195,12 @@ func (c *ClientConn) handleStmtExecute(data []byte) error {
 
 	flag := data[pos]
 	pos++
-	//now we only support CURSOR_TYPE_NO_CURSOR flag
+	// now we only support CURSOR_TYPE_NO_CURSOR flag
 	if flag != 0 {
 		return mysql.NewError(mysql.ER_UNKNOWN_ERROR, fmt.Sprintf("unsupported flag %d", flag))
 	}
 
-	//skip iteration-count, always 1
+	// skip iteration-count, always 1
 	pos += 4
 
 	var nullBitmaps []byte
@@ -217,7 +217,7 @@ func (c *ClientConn) handleStmtExecute(data []byte) error {
 		nullBitmaps = data[pos : pos+nullBitmapLen]
 		pos += nullBitmapLen
 
-		//new param bound flag
+		// new param bound flag
 		if data[pos] == 1 {
 			pos++
 			if len(data) < (pos + (paramNum << 1)) {
@@ -264,7 +264,7 @@ func (c *ClientConn) handlePrepareSelect(stmt *sqlparser.Select, sql string, arg
 	}
 	defaultNode := c.proxy.GetNode(defaultRule.Nodes[0])
 
-	//choose connection in slave DB first
+	// choose connection in slave DB first
 	conn, err := c.getBackendConn(defaultNode, true)
 	defer c.closeConn(conn, false)
 	if err != nil {
@@ -301,7 +301,7 @@ func (c *ClientConn) handlePrepareExec(stmt sqlparser.Statement, sql string, arg
 	}
 	defaultNode := c.proxy.GetNode(defaultRule.Nodes[0])
 
-	//execute in Master DB
+	// execute in Master DB
 	conn, err := c.getBackendConn(defaultNode, false)
 	defer c.closeConn(conn, false)
 	if err != nil {

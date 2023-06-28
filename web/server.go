@@ -4,7 +4,7 @@
 // not use this file except in compliance with the License. You may obtain
 // a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -17,10 +17,9 @@ import (
 	"github.com/flike/kingshard/config"
 	"github.com/flike/kingshard/core/golog"
 	"github.com/flike/kingshard/proxy/server"
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
+	mw "github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"
-	//"github.com/labstack/echo/engine/standard"
-	mw "github.com/labstack/echo/middleware"
 )
 
 type ApiServer struct {
@@ -29,7 +28,7 @@ type ApiServer struct {
 	webAddr     string
 	webUser     string
 	webPassword string
-	web *echo.Echo
+	web         *echo.Echo
 }
 
 func NewApiServer(cfg *config.Config, srv *server.Server) (*ApiServer, error) {
@@ -54,10 +53,10 @@ func (s *ApiServer) Run() error {
 
 	s.RegisterMiddleware()
 	s.RegisterURL()
-	//std := standard.New(s.webAddr)
-	//std.SetHandler(s)
-	//graceful.ListenAndServe(std.Server, 5*time.Second)
-	//return nil
+	// std := standard.New(s.webAddr)
+	// std.SetHandler(s)
+	// graceful.ListenAndServe(std.Server, 5*time.Second)
+	// return nil
 	err := s.web.Start(s.webAddr)
 	if err != nil {
 		log.Errorf("AdminServer.Start:web server start error,err:%s", err)
@@ -66,7 +65,7 @@ func (s *ApiServer) Run() error {
 }
 
 func (s *ApiServer) RegisterMiddleware() {
-	//s.Use(mw.Logger())
+	// s.Use(mw.Logger())
 	s.web.Use(mw.LoggerWithConfig(mw.LoggerConfig{
 		Format: `{"time":"${time_rfc3339}","remote_ip":"${remote_ip}",` +
 			`"method":"${method}","uri":"${uri}","status":${status}, "latency":${latency},` +
@@ -107,9 +106,9 @@ func (s *ApiServer) RegisterURL() {
 	s.web.PUT("/api/v1/proxy/config/save", s.SaveProxyConfig)
 }
 
-func (s *ApiServer) CheckAuth(username, password string,ctx echo.Context) (bool,error) {
+func (s *ApiServer) CheckAuth(username, password string, ctx echo.Context) (bool, error) {
 	if username == s.webUser && password == s.webPassword {
-		return true,nil
+		return true, nil
 	}
-	return false,nil
+	return false, nil
 }

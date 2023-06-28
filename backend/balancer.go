@@ -67,8 +67,8 @@ func (n *Node) InitBalancer() {
 	}
 
 	//random order
-	if 1 < len(n.SlaveWeights) {
-		r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	if len(n.SlaveWeights) > 1 {
 		for i := 0; i < sum; i++ {
 			x := r.Intn(sum)
 			temp := n.RoundRobinQ[x]

@@ -24,8 +24,8 @@ func TestConfig(t *testing.T) {
 	var testConfigData = []byte(
 		`
 addr : 0.0.0.0:9696
-user : root
-password : root
+web_user : root
+web_password : root
 log_level : error
 allow_ips : 127.0.0.1,192.168.0.13
 
@@ -119,8 +119,8 @@ schema :
 		Type:          "hash",
 		TableRowLimit: 0,
 	}
-	if !reflect.DeepEqual(cfg.Schema.ShardRule[0], testShard_1) {
-		fmt.Printf("%v\n", cfg.Schema.ShardRule[0])
+	if !reflect.DeepEqual(cfg.SchemaList[0].ShardRule[0], testShard_1) {
+		fmt.Printf("%v\n", cfg.SchemaList[0].ShardRule[0])
 		t.Fatal("ShardConfig0 must equal")
 	}
 
@@ -133,12 +133,12 @@ schema :
 		Locations:     []int{4, 4},
 		TableRowLimit: 10000,
 	}
-	if !reflect.DeepEqual(cfg.Schema.ShardRule[1], testShard_2) {
-		fmt.Printf("%v\n", cfg.Schema.ShardRule[1])
+	if !reflect.DeepEqual(cfg.SchemaList[0].ShardRule[1], testShard_2) {
+		fmt.Printf("%v\n", cfg.SchemaList[0].ShardRule[1])
 		t.Fatal("ShardConfig1 must equal")
 	}
 
-	if 2 != len(cfg.Schema.ShardRule) {
+	if len(cfg.SchemaList[0].ShardRule) != 2 {
 		t.Fatal("ShardRule must 2")
 	}
 
@@ -148,12 +148,12 @@ schema :
 		ShardRule: []ShardConfig{testShard_1, testShard_2},
 	}
 
-	if !reflect.DeepEqual(cfg.Schema, testSchema) {
+	if !reflect.DeepEqual(cfg.SchemaList[0], testSchema) {
 		t.Fatal("schema must equal")
 	}
 
-	if cfg.LogLevel != "error" || cfg.User != "root" ||
-		cfg.Password != "root" || cfg.Addr != "0.0.0.0:9696" {
+	if cfg.LogLevel != "error" || cfg.WebUser != "root" ||
+		cfg.WebPassword != "root" || cfg.Addr != "0.0.0.0:9696" {
 		t.Fatal("Top Config not equal.")
 	}
 }

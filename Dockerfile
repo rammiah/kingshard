@@ -1,9 +1,13 @@
-FROM golang:1.13.8 as builder
+FROM golang:1.20-alpine as builder
 WORKDIR /go/src/app
-COPY . .
+ENV GOPROXY=https://goproxy.cn
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories && \
+    apk update && \
+    apk add make
+ADD . .
 RUN CGO_ENABLED=0 make
 
-FROM alpine:3.11.3
+FROM alpine:latest
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories \
     && apk update \
     && apk add tzdata \

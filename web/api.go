@@ -24,7 +24,7 @@ import (
 
 	ksError "github.com/flike/kingshard/core/errors"
 	"github.com/flike/kingshard/core/golog"
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 )
 
 func (s *ApiServer) GetAllowIps(c echo.Context) error {
@@ -32,7 +32,7 @@ func (s *ApiServer) GetAllowIps(c echo.Context) error {
 	return c.JSON(http.StatusOK, allowIps)
 }
 
-//add one or multi ips
+// add one or multi ips
 func (s *ApiServer) AddAllowIps(c echo.Context) error {
 	args := struct {
 		AllowIPs []string `json:"allow_ips"`
@@ -50,7 +50,7 @@ func (s *ApiServer) AddAllowIps(c echo.Context) error {
 	return c.JSON(http.StatusOK, "ok")
 }
 
-//delete one or multi ips
+// delete one or multi ips
 func (s *ApiServer) DelAllowIps(c echo.Context) error {
 	args := struct {
 		AllowIPs []string `json:"allow_ips"`
@@ -69,19 +69,19 @@ func (s *ApiServer) DelAllowIps(c echo.Context) error {
 }
 
 type DBStatus struct {
-	Node      		string `json:"node"`
-	Address   		string `json:"address"`
-	Type      		string `json:"type"`
-	Status    		string `json:"status"`
-	LastPing  		string `json:"laste_ping"`
-	MaxConn   		int    `json:"max_conn"`
-	IdleConn  		int    `json:"idle_conn"`
-	CacheConn 		int    `json:"cache_conn"`
-	PushConnCount  	int64  `json:"push_conn_count"`
-	PopConnCount   	int64  `json:"pop_conn_count"`
+	Node          string `json:"node"`
+	Address       string `json:"address"`
+	Type          string `json:"type"`
+	Status        string `json:"status"`
+	LastPing      string `json:"laste_ping"`
+	MaxConn       int    `json:"max_conn"`
+	IdleConn      int    `json:"idle_conn"`
+	CacheConn     int    `json:"cache_conn"`
+	PushConnCount int64  `json:"push_conn_count"`
+	PopConnCount  int64  `json:"pop_conn_count"`
 }
 
-//get nodes status
+// get nodes status
 func (s *ApiServer) GetNodesStatus(c echo.Context) error {
 	var masterStatus, slaveStatus DBStatus
 
@@ -89,10 +89,10 @@ func (s *ApiServer) GetNodesStatus(c echo.Context) error {
 	nodes := s.proxy.GetAllNodes()
 
 	for nodeName, node := range nodes {
-		//get master counter
-		idleConns,cacheConns,pushConnCount,popConnCount := node.Master.ConnCount()
+		// get master counter
+		idleConns, cacheConns, pushConnCount, popConnCount := node.Master.ConnCount()
 
-		//get master status
+		// get master status
 		masterStatus.Node = nodeName
 		masterStatus.Address = node.Master.Addr()
 		masterStatus.Type = "master"
@@ -105,10 +105,10 @@ func (s *ApiServer) GetNodesStatus(c echo.Context) error {
 		masterStatus.PopConnCount = popConnCount
 		dbStatus = append(dbStatus, masterStatus)
 
-		//get slaves status
+		// get slaves status
 		for _, slave := range node.Slave {
-			//get slave counter
-			idleConns,cacheConns,pushConnCount,popConnCount := slave.ConnCount()
+			// get slave counter
+			idleConns, cacheConns, pushConnCount, popConnCount := slave.ConnCount()
 
 			slaveStatus.Node = nodeName
 			slaveStatus.Address = slave.Addr()
@@ -238,7 +238,7 @@ func (s *ApiServer) ChangeProxyStatus(c echo.Context) error {
 	return c.JSON(http.StatusOK, "ok")
 }
 
-//range,hash or date
+// range,hash or date
 type ShardConfig struct {
 	User          string   `json:"user"`
 	DB            string   `json:"db"`
@@ -253,8 +253,8 @@ type ShardConfig struct {
 
 func (s *ApiServer) GetProxySchema(c echo.Context) error {
 	shardConfig := make([]ShardConfig, 0, 10)
-	for _, schema := range s.cfg.SchemaList{
-		//append default rule
+	for _, schema := range s.cfg.SchemaList {
+		// append default rule
 		shardConfig = append(shardConfig,
 			ShardConfig{
 				User:  schema.User,
@@ -264,7 +264,7 @@ func (s *ApiServer) GetProxySchema(c echo.Context) error {
 		for _, r := range schema.ShardRule {
 			shardConfig = append(shardConfig,
 				ShardConfig{
-					User:		   schema.User,
+					User:          schema.User,
 					DB:            r.DB,
 					Table:         r.Table,
 					Key:           r.Key,

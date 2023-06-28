@@ -333,7 +333,7 @@ func (db *DB) GetConnFromIdle(cacheConns, idleConns chan *Conn) (*Conn, error) {
 	var co *Conn
 	var err error
 	select {
-	case co = <-idleConns:
+	case <-idleConns:
 		atomic.AddInt64(&db.popConnCount, 1)
 		co, err := db.newConn()
 		if err != nil {
@@ -351,7 +351,7 @@ func (db *DB) GetConnFromIdle(cacheConns, idleConns chan *Conn) (*Conn, error) {
 		if co == nil {
 			return nil, errors.ErrConnIsNil
 		}
-		if co != nil && PingPeroid < time.Now().Unix()-co.pushTimestamp {
+		if PingPeroid < time.Now().Unix()-co.pushTimestamp {
 			err = co.Ping()
 			if err != nil {
 				db.closeConn(co)

@@ -109,8 +109,6 @@ func (c *ClientConn) handleQuery(sql string) (err error) {
 	default:
 		return fmt.Errorf("statement %T not support now", stmt)
 	}
-
-	return nil
 }
 
 func (c *ClientConn) getBackendConn(n *backend.Node, fromSlave bool) (co *backend.BackendConn, err error) {
@@ -163,7 +161,7 @@ func (c *ClientConn) getBackendConn(n *backend.Node, fromSlave bool) (co *backen
 	return
 }
 
-//获取shard的conn，第一个参数表示是不是select
+// 获取shard的conn，第一个参数表示是不是select
 func (c *ClientConn) getShardConns(fromSlave bool, plan *router.Plan) (map[string]*backend.BackendConn, error) {
 	var err error
 	if plan == nil || len(plan.RouteNodeIndexs) == 0 {

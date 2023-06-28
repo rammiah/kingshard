@@ -16,6 +16,7 @@ package mysql
 
 import (
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -31,7 +32,7 @@ func Pstack() string {
 	return string(buf[0:n])
 }
 
-func CalcPassword(scramble, password []byte) []byte {
+func CalcSha1Password(scramble, password []byte) []byte {
 	if len(password) == 0 {
 		return nil
 	}
@@ -60,13 +61,36 @@ func CalcPassword(scramble, password []byte) []byte {
 	return scramble
 }
 
+func CalcSha2Password(salt []byte, password []byte) []byte {
+	if len(password) == 0 {
+		return nil
+	}
+	crypt := sha256.New()
+	crypt.Write(password)
+	stage1 := crypt.Sum(nil)
+
+	crypt.Reset()
+	crypt.Write(stage1)
+	stage1Hash := crypt.Sum(nil)
+
+	crypt.Reset()
+	crypt.Write(stage1Hash)
+	crypt.Write(salt)
+	stage3 := crypt.Sum(nil)
+
+	for i := range stage1 {
+		stage1[i] ^= stage3[i]
+	}
+	return stage1
+}
+
 // seed must be in the range of ascii
 func RandomBuf(size int) ([]byte, error) {
 	buf := make([]byte, size)
-	rand.Seed(time.Now().UTC().UnixNano())
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	min, max := 30, 127
 	for i := 0; i < size; i++ {
-		buf[i] = byte(min + rand.Intn(max-min))
+		buf[i] = byte(min + r.Intn(max-min))
 	}
 	return buf, nil
 }

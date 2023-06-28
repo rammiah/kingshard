@@ -16,7 +16,6 @@ package monitor
 
 import (
 	"net/http"
-	"strconv"
 	"sync"
 	"time"
 
@@ -24,6 +23,7 @@ import (
 	"github.com/flike/kingshard/proxy/server"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/spf13/cast"
 )
 
 type Prometheus struct {
@@ -32,7 +32,7 @@ type Prometheus struct {
 	nodesData sync.Map
 }
 
-//新建prometheus实例
+// 新建prometheus实例
 func NewPrometheus(addr string, svr *server.Server) (*Prometheus, error) {
 	prom := new(Prometheus)
 	prom.addr = addr
@@ -45,7 +45,7 @@ func NewPrometheus(addr string, svr *server.Server) (*Prometheus, error) {
 	return prom, nil
 }
 
-//启动prometheus的http监控
+// 启动prometheus的http监控
 func (p *Prometheus) Run() {
 	//设置标签及注册
 	data := p.svr.GetMonitorData()
@@ -122,8 +122,8 @@ func (p *Prometheus) flush() {
 					continue
 				}
 
-				val, _ := strconv.ParseFloat(item[name], 10)
-				gauge.Set(val)
+				// val, _ := strconv.ParseFloat(item[name], )
+				gauge.Set(cast.ToFloat64(item[name]))
 			}
 		}
 	}
