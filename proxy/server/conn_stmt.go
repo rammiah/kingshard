@@ -256,7 +256,7 @@ func (c *ClientConn) handleStmtExecute(data []byte) error {
 		c.command = mysql.COM_DELETE_STR
 		err = c.handlePrepareExec(s.s, s.sql, s.args)
 	case *sqlparser.Replace:
-		c.command = mysql.COM_DELETE_STR
+		c.command = mysql.COM_REPLACE_STR
 		err = c.handlePrepareExec(s.s, s.sql, s.args)
 	default:
 		err = fmt.Errorf("command %T not supported now", stmt)
