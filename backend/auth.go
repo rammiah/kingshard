@@ -416,13 +416,12 @@ func (c *Conn) handleAuthResult(oldAuthData []byte, plugin string) error {
 				return err
 			}
 			_, err = c.readOK()
+			return err
 		}
 
 	default:
 		return mysql.ErrMalformPkt
 	}
-
-	return err
 }
 
 func (mc *Conn) readAuthResult() ([]byte, string, error) {

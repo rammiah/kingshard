@@ -115,12 +115,6 @@ func (c *Conn) ReConnect() error {
 		return err
 	}
 
-	// if _, err := c.readOK(); err != nil {
-	// 	c.conn.Close()
-	//
-	// 	return err
-	// }
-
 	// we must always use autocommit
 	if !c.IsAutoCommit() {
 		if _, err := c.exec("set autocommit = 1"); err != nil {

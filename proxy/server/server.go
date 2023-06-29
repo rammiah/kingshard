@@ -799,7 +799,7 @@ func (s *Server) UpdateConfig(newCfg *config.Config) {
 		newUserList[user.User] = user.Password
 	}
 
-	for user, _ := range newUserList {
+	for user := range newUserList {
 		if _, exist := newSchemas[user]; !exist {
 			golog.Error("Server", "UpdateConfig", fmt.Sprintf("user [%s] must have a schema", user), 0)
 			return
@@ -911,7 +911,7 @@ func (s *Server) registerMetrics() {
 			Name:        "latency",
 			Help:        "server process latency",
 			ConstLabels: metricsLabels,
-			Buckets:     []float64{1, 5, 10, 15, 25, 50, 100, 150, 250, 500, 750, 1000, 1500, 2000, 3000, 6000, 10000},
+			Buckets:     []float64{1, 3, 5, 7, 10, 15, 25, 50, 100, 150, 250, 500, 750, 1000, 1500, 2000},
 		}, []string{"command"}),
 		serverConnection: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace:   "kingshard",
