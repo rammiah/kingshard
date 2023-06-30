@@ -420,7 +420,7 @@ func (c *Conn) handleAuthResult(oldAuthData []byte, plugin string) error {
 		}
 
 	default:
-		return mysql.ErrMalformPkt
+		return nil
 	}
 }
 
